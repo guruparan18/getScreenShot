@@ -3,4 +3,4 @@ app_master.*
 app.js.*
 formURL.js
 get.js
-.*~
+*~

@@ -16,8 +16,9 @@ var options = {
 }
 
 function make_image_and_tweet(web_url, tweet_text_in, v_id_str_in){
-  urlToImage(web_url, 'tweeter.png', options).then(function() {
-    var b64content = fs.readFileSync('tweeter.png', { encoding: 'base64' })
+  console.log(v_id_str_in, tweet_text_in, web_url)
+  urlToImage(web_url, '~/apps/getscreenshot/tweeter.png', options).then(function() {
+    var b64content = fs.readFileSync('~/apps/getscreenshot/tweeter.png', { encoding: 'base64' })
 
     // first we must post the media to Twitter
         T.post('media/upload', { media_data: b64content }, function (err, data, response) {
@@ -32,7 +33,7 @@ function make_image_and_tweet(web_url, tweet_text_in, v_id_str_in){
             // now we can reference the media and post a tweet (media will attach to the tweet)
              var params = { status: tweet_text_in, media_ids: [mediaIdStr], in_reply_to_status_id: v_id_str_in}
              T.post('statuses/update', params, function (err, data, response) {
-               console.log('')
+               console.log(data)
               })
             }
           })
@@ -42,34 +43,38 @@ function make_image_and_tweet(web_url, tweet_text_in, v_id_str_in){
     });
 }
 
-T.get('statuses/mentions_timeline', {since_id: '827948422724481025'}, function(err, data, response) {
-  //console.log(data)
+T.get('statuses/mentions_timeline', {since_id: '829526545190510593'}, function(err, data, response) {
   // 1.  Find if the tweet is a reply to another tweet. Use: in_reply_to_status_id_str
   //         If in_reply_to_status_id_str is not null, then use that to fetch build URL.
   if (data.length == 0) {
-      console.log('No data retried.')
+      console.log('No data retrived.')
     } else {
-      console.log(data[0].id_str)
+      fs.writeFile('~/apps/getscreenshot/lastScanID.txt', data[0].id_str)
       for (var i=0; i < data.length; i++){
           var v_id_str                          = data[i].id_str
           var v_in_reply_to_status_id_str       = data[i].in_reply_to_status_id_str
           var v_in_reply_to_screen_name         = data[i].in_reply_to_screen_name
           var v_user_screen_name                = data[i].user.screen_name
           var v_is_quote_status                 = data[i].is_quote_status
+          var text                              = data[i].text
           var url_in                            = 'NO-URL'
           var tweet_text                        = '@'
+          var re                                = new RegExp('([http|https]+\:[\/\/a-zA-Z0-9\.\?\=]+)')
 
-          if (v_in_reply_to_screen_name) {          
-            url_in         = 'https://www.twitter.com/'+ v_in_reply_to_screen_name +'/status/'+ v_in_reply_to_status_id_str
-            tweet_text                        = tweet_text+v_in_reply_to_screen_name
+          if (v_in_reply_to_screen_name) {
+            url_in               = 'https://www.twitter.com/'+ v_in_reply_to_screen_name +'/status/'+ v_in_reply_to_status_id_str
+            tweet_text           = tweet_text+v_in_reply_to_screen_name
             make_image_and_tweet(url_in, tweet_text, v_id_str)
           } else if (v_is_quote_status) {
             var v_quoted_status_id_str            = data[i].quoted_status_id_str
             var v_quoted_status_user_screen_name  = data[i].quoted_status.user.screen_name
-            url_in         = 'https://www.twitter.com/'+ v_quoted_status_user_screen_name +'/status/'+ v_quoted_status_id_str
-            tweet_text     = tweet_text+v_quoted_status_user_screen_name
+            url_in               = 'https://www.twitter.com/'+ v_quoted_status_user_screen_name +'/status/'+ v_quoted_status_id_str
+            tweet_text                            = tweet_text+v_quoted_status_user_screen_name
             make_image_and_tweet(url_in, tweet_text, v_id_str)
-          } else if() {
+          } else if ( text.match(re) ){
+            url_in               = text.match(re)[0]
+            tweet_text           = tweet_text+v_user_screen_name
+            make_image_and_tweet(url_in, tweet_text, v_id_str)
           }// End of IF-user-replied.
       } // End FOR-LOOP-data[0]
     } // End of IF-ELSE-data.length-0.
